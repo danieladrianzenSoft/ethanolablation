@@ -1,0 +1,43 @@
+function [DYDT] = getConcentration(t, Y, x, params)
+
+    dYdt = zeros(numel(x),size(Y,2));
+    dYdx = zeros(numel(x),size(Y,2));
+    d2Ydx2 = zeros(numel(x),size(Y,2));
+    d4Ydx4 = zeros(numel(x),size(Y,2));
+
+    numx = params("numx");
+    D_S = params("D_S");
+    c0 = params("c0");
+    e = params("epsilon");
+    %dCdt(i) = D_T.*(-2*C(i)+C(i-1))./(dx.^2) - k_b.*C(i); %BC zero conc CORRECT
+
+    for i = 1 %y direction BC zero flux (dcdx=0)
+        dx = x(2)-x(1);
+        %dYdr(i) = (Y(i)-Y(i-1))./dr; %backward difference
+        %dYdr(i,:) = (Y(i+1,:)-Y(i-1,:))./(2*dr); %central difference
+        dYdx(i,:) = (Y(i+1,:)-c0)./(dx); %forward difference
+        d2Ydx2(i,:) = (Y(i+2,:)-2*(Y(i+1,:))+c0)./(dx.^2);
+        %dCdt(i) = D_T.*(-2*C(i)+C(i-1))./(dx.^2) - k_b.*C(i); %BC zero conc CORRECT
+
+        %dYdt(i,:) = ((2*D_C/r(i)).*dYdr(i,:))+(D_C*d2Ydr2(i,:));
+        dYdt(i,:) = D_S*d2Ydx2(i,:);
+    end
+    for i = 2:(numx-1) %in stroma
+        dx = x(i+1)-x(i);
+        %dYdr(i) = (Y(i)-Y(i-1))./dr; %backward difference
+        dYdx(i,:) = (Y(i+1,:)-Y(i-1,:))./(2*dx); %central difference
+        %dYdr(i,:) = (Y(i+1,:)-Y(i,:))./dr; %forward difference
+        d2Ydx2(i,:) = (Y(i+1,:)-2.*Y(i,:)+Y(i-1,:))./(dx.^2); %central difference
+        d4Ydx4(i,:) = (Y(i+2,:)-4*Y(i+1,:)+6*Y(i,:)-4*Y(i-1,:)+Y(i-2,:))./(dx.^4); %central difference
+        dYdt(i,:) = D_S*(6*Y(i,:).*(dYdx(i,:).^2) + (3*(Y(i,:).^2)-1).*d2Ydx2(i,:) - (e^2)*d4Ydx4(i,:));
+    end
+    for i = numx %end of stroma, B.C.
+        dx = x(i)-x(i-1);
+        dYdx(i,:) = -Y(i-1)./dx; % 0 CONC B.C. BACKWARD DIFF
+        d2Ydx2(i,:) = (-2.*Y(i-1,:)+Y(i-2,:))./(dx.^2); % 0 CONC B.C. BACKWARD DIFF
+        dYdt(i,:) = D_S*d2Ydx2(i,:);
+    end
+    
+    DYDT = dYdt;
+
+end

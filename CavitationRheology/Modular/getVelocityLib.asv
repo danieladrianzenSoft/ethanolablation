@@ -1,0 +1,89 @@
+classdef getVelocityLib
+    methods(Static)
+        function v = velocity_newtonian_fluid_plus_solid(r, ind_r0, r0, Q_needle)
+            v = zeros(length(r),1);
+            v(1) = 2 * Q_needle ./ ( pi * r0.^2 );
+            v(2:ind_r_cavity) = Q_needle ./ ( 4 * pi * r(2:ind_r_cavity).^2 );
+            
+        end
+        function v = velocity_newtonian_fluid(r, ind_r_cavity, r0, theta, epsilon_c, lambda, Q_needle, Pc, mu)
+            % continuous velocity B.C, using concentration in mass
+            % conservation and porosities.
+
+            CC = ((3 * mu * lambda.^2 * r0) ./ (3*lambda.^2)) * ((Q_needle / (pi * r0^2)) - ((Pc * r0) / (3 * mu)));
+
+            v(1) = 2 * Q_needle / (pi * r0.^2); %Vmax in pouiseuille law
+            v(2:ind_r_cavity) = ((Pc .* r(2:ind_r_cavity)) / (3 * mu)) + ...
+                CC .* ((1 ./ (mu * r(2:ind_r_cavity))) - (r(2:ind_r_cavity)./(3 * mu * lambda.^2 * r0^2)));
+            v(ind_r_cavity+1:end) = ((lambda * r0) / (3 * mu)) .* (Pc .* lambda.^2 * r0^2 + 2*CC) .* (1 ./ (r(ind_r_cavity+1:end).^2));
+%             v(ind_r_cavity+1:end) = ((Pc * r0^3 * lambda.^3) / (3*mu)) * (1 ./ (r(ind_r_cavity+1:end).^2)) + ...
+%                 ((2 * lambda * r0) / (3 * mu)) .* CC .* (1 ./ r(ind_r_cavity+1:end));
+
+        end
+        function v = ethanol_velocity_porosity_v2(r, ind_r_cavity, r0, theta, epsilon_c, lambda, Q_needle)
+            % updated to fix issue with continuity equation for v_c, with
+            % source term from needle.
+            
+            v = zeros(length(r),1);
+            v(1) = 2 * Q_needle / (pi * r0.^2); %Vmax in pouiseuille law
+            v(2:ind_r_cavity) = (Q_needle ./ (4 * pi * (r(2:ind_r_cavity).^2) * epsilon_c)) .* ((r(2:ind_r_cavity).^3)/(r0^3) + epsilon_c - 1);
+            v(ind_r_cavity+1:end) = ((Q_needle * theta) ./ (4 * pi * (r(ind_r_cavity+1:end).^2) * epsilon_c)) .* (lambda.^3 + epsilon_c - 1);
+        end
+        function v = ethanol_velocity_porosity(r, ind_r_cavity, r0, theta, Q_needle)
+            % simplified. Analytically, velocity simplifies to Q / (4pi
+            % r^2)
+            
+            v = zeros(length(r),1);
+            v(1) = 2 * Q_needle / (pi * r0.^2); %Vmax in pouiseuille law
+            v(2:ind_r_cavity) = Q_needle ./ (4 * pi * (r(2:ind_r_cavity).^2));
+            v(ind_r_cavity+1:end) = (Q_needle * theta) ./ (4 * pi * (r(ind_r_cavity+1:end).^2));
+            %v(ind_r_cavity+1:end) = (Q_needle) ./ (4 * pi * (r(ind_r_cavity+1:end).^2));
+
+%             v = zeros(length(r),1);
+%             v(1:ind_r0) = Q_needle ./ (4 * pi * r0.^2 );
+%             v(ind_r0+1:end) = Q_needle ./ (4 * pi * r(ind_r0+1:end).^2 );
+            
+%             v = zeros(length(r),1);
+%             v(1) = Q_needle ./ (4 * pi * r0.^2 );
+%             v(2:end) = Q_needle ./ ((4 * pi * r(2:end).^2 ));
+            
+%             v = Q_needle ./ (4 * pi * r.^2);
+         end
+         function v = ethanol_velocity_v3(r, ind_r0, r0, Q_needle)
+            % simplified. Analytically, velocity simplifies to Q / (4pi
+            % r^2)          
+            v = zeros(length(r),1);
+            v(1) = 2 * Q_needle ./ ( pi * r0.^2 );
+            v(2:end) = Q_needle ./ ( 4 * pi * r(2:end).^2 );
+%             v = zeros(length(r),1);
+%             v(2:end) = Q_needle ./ ((4 * pi * r(2:end).^2 ));
+            
+%             v = Q_needle ./ (4 * pi * r.^2);
+        end
+        function v = ethanol_velocity_v2(r, ind_r0, r0, Q_needle)
+            % simplified. Analytically, velocity simplifies to Q / (4pi
+            % r^2)          
+            v = zeros(length(r),1);
+            v(1:ind_r0) = Q_needle ./ (4 * pi * r0.^2 );
+            v(ind_r0+1:end) = Q_needle ./ (4 * pi * r(ind_r0+1:end).^2 );
+%             v = zeros(length(r),1);
+%             v(2:end) = Q_needle ./ ((4 * pi * r(2:end).^2 ));
+            
+%             v = Q_needle ./ (4 * pi * r.^2);
+        end
+        function v = ethanol_velocity(t, r, ind_r_cavity, r_needle, phi, k_c, k_t, dlambdadt, delP)
+            v = zeros(length(r), length(t));
+            for timePt = 1:length(t)
+                v(1:ind_r_cavity,timePt) = -(k_c/phi) * delP(1:ind_r_cavity,timePt) + r_needle * dlambdadt(timePt);
+                v(ind_r_cavity+1:end,timePt) = -(k_t) *delP(ind_r_cavity+1:end,timePt);
+            end
+        end
+        function v = pressure_bc(r, ind_r_cavity, r_needle, r_tot, k_t, p_c, Q_needle, lambda)
+            % v1.0, continuous pressure boundary condition @ r=r_c
+            v = zeros(length(r), 1);
+            v(1:ind_r_cavity) = Q_needle ./ (4 * pi * r(1:ind_r_cavity).^2);
+            v(ind_r_cavity+1:end) = ((k_t * p_c) ./ (r(ind_r_cavity+1:end).^2)) .* lambda * r_needle * r_tot / (r_tot - (lambda * r_needle)) ;
+        end
+    end
+end
+

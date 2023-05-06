@@ -1,0 +1,9 @@
+classdef getPlotsLib
+    methods(Static)
+        function v = ethanol_velocity(t, r, ind_r_cavity, r_needle, phi, k_c, k_t, dlambdadt, delP)
+            v(1:ind_r_cavity,:) = -(k_c/phi)*delP(1:ind_r_cavity,:) + r_needle*dlambdadt;
+            v(ind_r_cavity+1:end,:) = -(k_t)*delP(ind_r_cavity+1:end,:);
+        end
+    end
+end
+

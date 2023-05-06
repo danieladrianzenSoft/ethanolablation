@@ -1,0 +1,157 @@
+function spinodal_decomp(D,gamma,r,options)
+% Inputs
+%    D: double. Diffusion coefficient. Default is 1e-6
+%    gamma: double. Square length of transitional regions between domains.
+%       Default is 5
+% 
+% Parameters
+%    'GridSize': int. Edge length for the square grid used for the
+%       model. Note generation time increases exponentially with grid size.
+%       (Default = 200)
+%    'FrameSpacing': int. Number of iterations between captured frames, 
+%       only relevant if capture mode is standard. (Default = 10)
+%    'CaptureMode': char. Method of video cature. Possible inputs below.
+%         'standard' - Constant num of iterations between frames. (Default)
+%      'incremental' - Num iterations between frames increases over time
+%    'ImgStyle': char. Method of frame generation. Possible inputs below.
+%         'binary' - Concentrations are binarized to major species. (Default)
+%           'true' - Concentrations are mapped to the colormap.
+%    'Colormap': char. Colormap used for visualization. Supports all 
+%       default MATLAB colormaps (Default = 'jet')
+%    'FileName': char. Name of video (Default = 'spinodal_decomposition')
+%       
+% Examples
+%    Example 1: Generate and record default model.
+%       spinodal_decomp();
+%    Example 2: Generate and record model with custom constants.
+%       spinodal_decomp(20,3);
+%    Example 3: Generate and record model with custom constants and capture
+%    mode.
+%       spinodal_decomp(10,10,'CaptureMode','incremental');
+%    Example 4: Generate and record model with custom constants and
+%    multiple custom parameters.
+%       spinodal_decomp(10,10,...
+%                      'CaptureMode','incremental',...
+%                      'Colormap','jet',...
+%                      'ImgStyle','true',...
+%                      'NumIterations',25000);   
+
+arguments
+   D double = 1e-6
+   gamma double = 0.05
+   r (1,:) {mustBeNumeric} = linspace(0,1,100);
+   options.EndTime = 1*60*60
+   options.GridSize double = 100
+   options.FrameSpacing double = 2
+   options.CaptureMode char = 'standard'
+   options.ImgStyle char = 'true'
+   options.Colormap char = 'jet'
+   options.ResultsFileName char = 'EC_phasechange_1D.mat'
+   options.GifFileName char = 'EC_phasechange_1D.gif'
+   options.RunNewSimulation char = 'true'
+end
+
+%spinodal_decomp(1e-6,30,'CaptureMode','incremental','dt',60);
+% spinodal_decomp(10,10,...
+% 'CaptureMode','incremental',...
+% 'Colormap','jet',...
+% 'ImgStyle','true',...
+% 'NumIterations',2500);
+
+
+
+% Random Starting Concentrations (-1 and 1 represent different species)
+%load circles1.mat s1
+%s1(s1==0) = -1;
+%u0 = s1;
+
+%u0 = 2*randi(2,options.GridSize)-3;
+%u0 = randi(2,options.GridSize)-1;
+%x = linspace(0,1,100);
+%y = linspace(0,1,100);
+%margin = floor(0.2*options.GridSize/2);
+
+%u0 = [-1*zeros(options.GridSize,options.GridSize/2),-1*zeros(options.GridSize,options.GridSize/2)];
+%u0 = [-1*ones(options.GridSize,options.GridSize/2),-1*ones(options.GridSize,options.GridSize/2)];
+%u0 = -1*ones(options.GridSize,options.GridSize);
+%u0(:,options.GridSize/2-20:options.GridSize/2+20) = 2*randi(2,41,options.GridSize)'-3;
+%u0(:,floor(options.GridSize/2)-margin:floor(options.GridSize/2)+margin) = -1+2.*rand(options.GridSize,margin*2+1);
+%u0(:,options.GridSize/2-20:options.GridSize/2+20) = rand(options.GridSize,41);
+%u0(:,options.GridSize/2-20:options.GridSize/2+20) = 0.*ones(options.GridSize,41);
+
+% IC = reshape(u0,[],1);
+r0 = 0.3;
+IC = -1*ones(length(r),1);
+inds_r0 = find(r>=r0)';
+IC(inds_r0(1)) = 1;
+IC(inds_r0(1)-1) = 1;
+bound = zeros(length(r),1);
+bound(inds_r0(1)) = 1;
+domain_inds = zeros(length(r),1);
+domain_inds = 2:inds_r0(1)-1;
+
+% Variables for incremental capture
+%count = 1;
+%frameStep = 1;
+tSpan = [0,options.EndTime];
+S = getSparsityLib.cahn_hilliard_1D(length(r),length(r));
+S = sparse(S);
+%opts1 = odeset('Vectorized','on');
+opts1 = odeset('JPattern',S,'RelTol',1e-3,'AbsTol',1e-4);
+%opts1 = odeset('Vectorized','on','RelTol',1e-3,'AbsTol',1e-4);
+
+% running simulation using ode15s, or just loading the results for plotting
+%if (options.RunNewSimulation == "true")
+
+    %x_pos = repmat(r.*cos(theta),[1,length(theta)])';
+    %y_pos = repmat(r.*sin(theta),[1,length(theta)])';
+    %[x_pos,y_pos] = pol2cart(theta,r);
+    %x_pos = (r.*cos(theta))';
+    %y_pos = (r.*sin(theta))';
+    %x = linspace(-1,1,100)';
+    %y = linspace(-1,1,100)';
+    %[XX,YY] = meshgrid(x,y);
+    
+    tic
+    %[t,ut] = ode15s(@(t,u) cahn_hilliard_1Dspherical(t,u,r,D,gamma), tSpan, IC, opts1);
+    [t,ut] = ode15s(@(t,u) cahn_hilliard_1Dspherical(t,u,r,bound,domain_inds,D,gamma), tSpan, IC, opts1);
+    toc
+    ut = ut';
+
+    theta = linspace(0,2*pi,length(r));
+    [R,T] = meshgrid(r,theta);
+    [bound_mask,~] = meshgrid(bound,theta);
+
+    x = R.*cos(T);
+    y = R.*sin(T);
+    
+    %ut_2d = repmat(ut',[length(theta),1]);
+    %f = figure();
+if (options.RunNewSimulation == "true")
+
+    u = zeros(length(r),length(theta),length(t));
+    for i = 1:length(t)
+        [u2d,~] = meshgrid(ut(:,i),theta);
+        u(:,:,i) = u2d;
+        %F=scatteredInterpolant(x_pos,y_pos,ut(:,i));
+        %u(:,:,i) = reshape(ut_2d(1:length(x_pos)*length(y_pos),i),length(x_pos),length(y_pos));
+        %u(:,:,i) = F(XX,YY);
+        %ax2 = axes("Parent",f);
+        %plotHeatmapGif_spherical(f,{ax1,ax2},t(i),r,ut(:,i),zeros(length(r)))
+    end
+
+    save(options.ResultsFileName,'t','x','y','u')
+
+else
+    
+    load(options.ResultsFileName)
+
+end
+
+%tvec = [1, find(t>=60,1), find(t>=5*60,1), find(t>=30*60,1)];
+%tvec = 1;
+% plotting results and making gif
+%makeSphereHeatmaps(t,tvec,r,ut')
+plotHeatmapGif_spherical(t,x,y,u,bound_mask,'ShowInteriorBounds','true','GifFileName',options.GifFileName)
+
+end

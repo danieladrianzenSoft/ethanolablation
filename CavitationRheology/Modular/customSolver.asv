@@ -1,0 +1,9 @@
+function Y = customSolver(f, y0, xSpan, maxIters)
+    dx = (xSpan(2)-xSpan(1)) / maxIters;
+    x = [x0, zeros(1,maxIters)];
+    y = [y0, zeros(1,maxIters)];
+    
+    for iter = 1:maxIters
+        y(iter+1) = 
+    end
+end

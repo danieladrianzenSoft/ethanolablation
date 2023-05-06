@@ -1,0 +1,64 @@
+classdef getVelocityGradientLib
+    methods(Static)
+        function dvdr = velocity_gradient_newtonian_fluid_plus_solid(r, ind_r_cavity, theta, Q_needle)
+            dvdr = zeros(length(r),1);
+            dvdr(1) = 0;
+            dvdr(2:ind_r_cavity) = - (2 * Q_needle) ./ (pi * (r(2 : ind_r_cavity).^3));
+            dvdr(ind_r_cavity+1:end) = - (2 * Q_needle * theta)./ (pi * (r(ind_r_cavity + 1 : end).^3));
+        end
+        function dvdr = velocity_gradient_newtonian_fluid(r, ind_r_cavity, r0, theta, epsilon_c, lambda, Q_needle, Pc, mu)
+            % continuous velocity B.C, using concentration in mass
+            % conservation and porosities.
+
+            CC = ((3 * mu * lambda.^2 * r0) ./ (3*lambda.^2)) * ((Q_needle / (pi * r0^2)) - ((Pc * r0) / (3 * mu)));
+
+            dvdr(1) = 0;
+            dvdr(2:ind_r_cavity) = (Pc / (3 * mu)) - ...
+                CC .* ((1 ./ (mu * r(2:ind_r_cavity).^2)) + (1./(3 * mu * lambda.^2 * r0^2)));
+            dvdr(ind_r_cavity+1:end) = ((-2 * lambda * r0) / (3 * mu)) .* (Pc .* lambda.^2 * r0^2 + 2*CC) .* (1 ./ (r(ind_r_cavity+1:end).^3));
+
+%             dvdr(ind_r_cavity+1:end) = ((-2 * Pc * r0^3 .* lambda.^3) / (3*mu)) * (1 ./ (r(ind_r_cavity+1:end).^3)) - ...
+%                 ((4 * lambda * r0) / (3 * mu)) .* CC .* (1 ./ r(ind_r_cavity+1:end) .^3);
+
+        end
+        function dvdr = velocity_gradient_v2(r, ind_r_cavity, theta, r0, epsilon_c, lambda, Q_needle)
+            % updated to fix issue with continuity equation for v_c, with
+            % source term from needle.
+            dvdr = zeros(length(r),1);
+            dvdr(1) = 0;
+            dvdr(2:ind_r_cavity) = (Q_needle ./ (2 * pi * (r(2 : ind_r_cavity).^3) * epsilon_c)) .* (((r(2 : ind_r_cavity).^3) / (2 * r0^3)) - epsilon_c + 1);
+            dvdr(ind_r_cavity+1:end) = ((theta * Q_needle) ./ (2 * pi * (r(ind_r_cavity+1:end).^3) * epsilon_c)) .* (-(lambda.^3) - epsilon_c + 1);
+        end
+        function dvdr = simple_velocity_gradient_porosity(r, ind_r_cavity, theta, Q_needle)
+            % simplified. Analytically, velocity simplifies to Q / (4pi
+            % r^2)
+%             dvdr = zeros(length(r),1);
+%             dvdr(1:ind_r0) = 0;
+%             dvdr(ind_r0+1:end) = - Q_needle ./ (2 * pi * r(ind_r0+1:end).^3);
+            dvdr = zeros(length(r),1);
+            dvdr(1) = 0;
+            dvdr(2:ind_r_cavity) = - Q_needle ./ (2 * pi * (r(2 : ind_r_cavity).^3));
+            dvdr(ind_r_cavity+1:end) = - (Q_needle * theta)./ (2 * pi * (r(ind_r_cavity + 1 : end).^3));
+            %dvdr(ind_r_cavity+1:end) = - (Q_needle)./ (2 * pi * (r(ind_r_cavity + 1 : end).^3));
+
+        end
+        function dvdr = simple_velocity_gradient(r, ind_r0, r0, Q_needle)
+            % simplified. Analytically, velocity simplifies to Q / (4pi
+            % r^2)
+%             dvdr = zeros(length(r),1);
+%             dvdr(1:ind_r0) = 0;
+%             dvdr(ind_r0+1:end) = - Q_needle ./ (2 * pi * r(ind_r0+1:end).^3);
+              dvdr = zeros(length(r),1);
+              dvdr(1) = 0;
+              dvdr(2:end) = - Q_needle ./ (2 * pi * r(2:end).^3);
+        end
+        function dvdr = pressure_bc(r, p_c, r0, r_tot, k_t, Q_needle, lambda, ind_r_cavity)
+           % v1.0, continuous pressure boundary condition @ r = r_c 
+              dvdr = zeros(length(r),1);
+              dvdr(1) = 0;
+              dvdr(2:ind_r_cavity) = - Q_needle ./ (2 * pi * (r(2 : ind_r_cavity).^3));
+              dvdr(ind_r_cavity+1:end) = - ((2 * k_t * p_c) ./ (r(ind_r_cavity+1:end).^3)) * ((lambda * r0 * r_tot) / (r_tot - lambda*r0));
+        end
+    end
+end
+

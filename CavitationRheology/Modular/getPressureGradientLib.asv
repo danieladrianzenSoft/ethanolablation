@@ -1,0 +1,50 @@
+classdef getPressureGradientLib
+    methods(Static)
+        function delP = pressure_gradient_newtonian_fluid_plus_solid(t, r, ind_r_cavity, r_needle, r_tot, lambda, phi, k_c, k_t, Q_needle, dlambdadt)
+            delP = zeros(length(r), length(t));
+            delP(2:ind_r_cavity,:) = -(Q_needle ./ (k_c * pi*(r(1:ind_r_cavity).^2)));
+            for timePt = 1:length(t)
+                delP(ind_r_cavity+1:end, timePt) = -((Q_needle * phi) / (pi * k_t)) * (1 ./ (r(ind_r_cavity+1:end))) + r_needle * (phi / k_t) * dlambdadt(timePt);
+            end
+            delP_tissue = ((Q_needle * theta) ./ (4 * pi * k_t * epsilon_c * r(ind_r_cavity+1:end) .^ 2)) .* (1 - lambda.^3 - epsilon_c);
+            delP(ind_r_cavity+1:end,:) = repmat(delP_tissue',1,length(t));
+        end
+        function delP = velocity_bc_porosity_v2(t, r, ind_r_cavity, lambda, dlambdadt, Q_needle, r_needle, phi, r0, theta, epsilon_c, k_c, k_t)
+            % updated to fix issue with continuity equation for v_c, with
+            % source term from needle.
+            delP = zeros(length(r), length(t));
+            for timePt = 1:length(t)
+                delP(1:ind_r_cavity,timePt) = (phi/k_c) * (r_needle * dlambdadt(timePt) - (Q_needle ./ (4*pi*(r(1:ind_r_cavity).^2) * epsilon_c)) * (1 - ((r(1:ind_r_cavity).^3) / r0^3) - epsilon_c));
+            end
+            delP_tissue = ((Q_needle * theta) ./ (4 * pi * k_t * epsilon_c * r(ind_r_cavity+1:end) .^ 2)) .* (1 - lambda.^3 - epsilon_c);
+            delP(ind_r_cavity+1:end,:) = repmat(delP_tissue',1,length(t));
+        end
+        function delP = velocity_bc_porosity(t, r, ind_r_cavity, p_c, lambda, dlambdadt, Q_needle, r_needle, r_tot, phi, theta, k_c, k_t)
+            delP = zeros(length(r), length(t));
+            for timePt = 1:length(t)
+                delP(1:ind_r_cavity,timePt) = (phi/k_c)*(r_needle * dlambdadt(timePt) - Q_needle ./ (4*pi*r(1:ind_r_cavity).^2));
+            end
+            delP_tissue = -Q_needle * theta ./ (4 * pi * k_t * r(ind_r_cavity+1:end) .^ 2);
+            delP(ind_r_cavity+1:end,:) = repmat(delP_tissue',1,length(t));
+        end
+        function delP = velocity_bc(t, r, ind_r_cavity, p_c, lambda, dlambdadt, Q_needle, r_needle, r_tot, phi, k_c, k_t)
+            delP = zeros(length(r), length(t));
+            for timePt = 1:length(t)
+                delP(1:ind_r_cavity,timePt) = (phi/k_c)*(r_needle * dlambdadt(timePt) - Q_needle ./ (4*pi*r(1:ind_r_cavity).^2));
+            end
+            delP_tissue = -Q_needle ./ (4 * pi * k_t * r(ind_r_cavity+1:end) .^ 2);
+            delP(ind_r_cavity+1:end,:) = repmat(delP_tissue',1,length(t));
+        end
+        function delP = pressure_bc(t, r, ind_r_cavity, p_c, lambda, dlambdadt, Q_needle, r_needle, r_tot, phi, k_c)
+            delP = zeros(length(r), length(t));
+            for timePt = 1:length(t)
+                delP(1:ind_r_cavity,timePt) = (phi/k_c)*(r_needle * dlambdadt(timePt) - Q_needle ./ (4*pi*r(1:ind_r_cavity).^2));
+                delP(ind_r_cavity+1:end,timePt) = -p_c * ((lambda(timePt) * r_needle * r_tot) ./ (r_tot - lambda(timePt) * r_needle)) .* (1 ./ r(ind_r_cavity+1:end)^2);
+            end
+
+        end
+
+    end
+end
+
+%p = pressure_bc(t, r, ind_r_cavity, r_needle, r_tot, lambda, phi, k_c, k_t, Q_needle, dlambdadt)
